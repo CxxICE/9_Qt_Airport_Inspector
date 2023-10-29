@@ -1,0 +1,9 @@
+<RCC>
+    <qresource prefix="/">
+        <file>img/airplane.ico</file>
+        <file>img/Green.jpg</file>
+        <file>img/NoColor.jpg</file>
+        <file>img/Red.jpg</file>
+        <file>img/Yellow.jpg</file>
+    </qresource>
+</RCC>
