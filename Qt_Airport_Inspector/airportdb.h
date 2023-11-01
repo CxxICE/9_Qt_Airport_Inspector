@@ -7,6 +7,8 @@
 #include <QSqlError>
 #include <QVector>
 #include <QDate>
+#include <QDateTime>
+#include <QThread>
 
 #include "structs.h"
 

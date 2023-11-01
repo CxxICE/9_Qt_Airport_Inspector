@@ -13,7 +13,8 @@
 #include <QValueAxis>
 #include <QChartView>
 #include <QtConcurrent>
-#include <QMutex>
+#include <QSemaphore>
+#include <QAtomicInt>
 
 #include "airportdb.h"
 
@@ -32,7 +33,13 @@ public:
 	//получение данных от MainWindow об аэропорте
 	void setStatistic(QString _airportName, QString _airportCode);
 
+	//методы для работы с Semaphore класса Statistic из MainWindow
+	void acquireSemaphore(int i);
+	void releaseSemaphore(int i);
+	int availableSemaphores();
+
 private slots:
+
 	//слоты приема моделей о годах и месяцах доступных в БД
 	void receiveYearsModel(QSqlQueryModel* yearsModel);
 	void receiveMonthsModel(QSqlQueryModel* monthsModel);
@@ -57,7 +64,7 @@ private:
 	AirportDB			*airportDB;
 	QString				airportCode;
 	QSqlQueryModel		*yearsModel;
-	QMutex				mutex;
+	QSemaphore			semaphore;
 
 	//график статистики по месяцам года
 	QStackedBarSeries	*yearGraph;
@@ -76,6 +83,10 @@ private:
 	QValueAxis			*xAxisMonth;
 	QValueAxis			*yAxisMonth;
 	QChartView			*monthChartView;
+
+	//счетчик созданных потоков в QtConcurrent --> при превышении макисмального числа потоков виджет блокирукется,
+	//пока число потоков не снизится ниже минимального
+	QAtomicInt counter;
 
 	//вспомогательные методы преобразования названий месяцев в числа и обратно
 	int MonthRusToInt(QString month);

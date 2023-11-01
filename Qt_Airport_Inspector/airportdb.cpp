@@ -1,5 +1,4 @@
 #include "airportdb.h"
-#include "qdatetime.h"
 
 AirportDB::AirportDB(QObject *parent): QObject{parent}
 {
@@ -14,7 +13,7 @@ AirportDB::AirportDB(QObject *parent): QObject{parent}
 
 AirportDB::~AirportDB()
 {
-	delete dataBase;
+	delete dataBase;	
 }
 
 //НАСТРОЙКА И ПОДКЛЮЧЕНИЕ/ОТКЛЮЧЕНИЕ БД
@@ -242,7 +241,7 @@ QDate AirportDB::getMaxDateArrival()
 /////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void AirportDB::getStatisticMonth(QDate from, QDate to, QString airport)
-{
+{	
 	getStatisticCommon(from, to, airport, "day");
 }
 

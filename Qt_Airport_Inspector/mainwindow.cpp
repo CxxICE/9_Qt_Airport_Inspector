@@ -10,6 +10,7 @@ MainWindow::MainWindow(QWidget *parent)
 	msgBoxClosed = false;
 	setWindowIcon(QIcon(":/img/airplane.ico"));
 	ui->centralwidget->setEnabled(false);
+	counter = 0;
 
 	//установка фильтра против исчезновения статуса при наведении мыши на меню
 	ui->menubar->installEventFilter(this);
@@ -56,8 +57,10 @@ MainWindow::MainWindow(QWidget *parent)
 
 	//запуск подключения БД и настройки MainWindow по данным из БД
 	auto f = QtConcurrent::run([&]()
-	{
+	{		
+		statisticWindow->acquireSemaphore(1);
 		initializeDB();
+
 	});	
 }
 
@@ -115,6 +118,7 @@ void MainWindow::initializeDB()
 
 		if(repeat)//если это не первая попытка подключения
 		{
+			statisticWindow->acquireSemaphore(1);
 			//тормозим поток, пока пользователь не закроет сообщение об ошибке подключения
 			while(!msgBoxClosed)
 			{
@@ -149,7 +153,7 @@ void MainWindow::initializeDB()
 	//
 	if(!(airportDB->isOpen()))//неуспешное подключение
 	{
-		receiveStatusConnection(false);
+		receiveStatusConnection(false);		
 	}
 	else//успешное подключение
 	{
@@ -185,7 +189,11 @@ void MainWindow::receiveError(QString error)
 	msgBoxClosed = false;
 	msgBox->setIcon(QMessageBox::Critical);
 	msgBox->setText(error);
-	msgBox->exec();
+	msgBox->exec();	
+	if(statisticWindow->availableSemaphores() == 0)
+	{
+		statisticWindow->releaseSemaphore(1);
+	}
 }
 
 //слот отображения статуса подключения БД
@@ -195,7 +203,7 @@ void MainWindow::receiveStatusConnection(bool status)
 	{
 		ui->statusbar->setStyleSheet("color:green");
 		ui->statusbar->showMessage("Подключено");
-		lb_statusLabel->setPixmap((QPixmap(":/img/Green.jpg", "JPG", Qt::ColorOnly)));		
+		lb_statusLabel->setPixmap((QPixmap(":/img/Green.jpg", "JPG", Qt::ColorOnly)));
 	}
 	else
 	{
@@ -203,8 +211,8 @@ void MainWindow::receiveStatusConnection(bool status)
 		ui->statusbar->showMessage("Отключено");
 		lb_statusLabel->setPixmap((QPixmap(":/img/Red.jpg", "JPG", Qt::ColorOnly)));
 		disconnectionActivated = true;
-		ui->centralwidget->setEnabled(false);
-	}
+		ui->centralwidget->setEnabled(false);		
+	}	
 }
 
 //слот маппирования аэропортов на combobox и qlabel
@@ -214,12 +222,18 @@ void MainWindow::receiveAirportsModel(QSqlQueryModel *airportsModel)
 	ui->cb_airports->setModelColumn(0);
 	mapper->setModel(airportsModel);
 	mapper->addMapping(ui->lb_airport_code, 1, "text");
-	mapper->setCurrentIndex(ui->cb_airports->currentIndex());
+	mapper->setCurrentIndex(ui->cb_airports->currentIndex());	
+	statisticWindow->releaseSemaphore(1);
 }
 
 //слот маппирования данных о перелетах на tableview
 void MainWindow::receiveFlightsModel(QSqlQueryModel *flightsModel)
 {
+	if(counter > 1)
+	{
+		statisticWindow->releaseSemaphore(1);
+		return;
+	}
 	ui->tv_flights->setModel(nullptr);
 	resetItemModel();
 
@@ -231,7 +245,7 @@ void MainWindow::receiveFlightsModel(QSqlQueryModel *flightsModel)
 	for (int y = 0; y < flightsModel->rowCount(); ++y)
 	{
 		for (int x = 0; x < flightsModel->columnCount(); ++x)
-		{
+		{			
 			//размещение item с placement new
 			QStandardItem *item = new (items + (flightsModel->columnCount()*y + x)*sizeof(QStandardItem))QStandardItem;
 
@@ -275,7 +289,12 @@ void MainWindow::receiveFlightsModel(QSqlQueryModel *flightsModel)
 
 	this->resize(oldWinSize + newTableSize - oldTableSize + 20, this->height());
 	ui->tv_flights->scrollToTop();
-	lb_statusLabel->setPixmap((QPixmap(":/img/Green.jpg", "JPG", Qt::ColorOnly)));
+	if(counter < MIN_THREADS_COUNT)
+	{
+		lb_statusLabel->setPixmap((QPixmap(":/img/Green.jpg", "JPG", Qt::ColorOnly)));
+	}
+
+	statisticWindow->releaseSemaphore(1);
 }
 
 
@@ -288,10 +307,24 @@ void MainWindow::on_rb_departure_clicked(bool checked)
 	{
 		auto f = QtConcurrent::run([&]()
 		{
+			++counter;
+			if(counter > MAX_THREADS_COUNT){
+				ui->centralwidget->setEnabled(false);
+				lb_statusLabel->setPixmap((QPixmap(":/img/Yellow.jpg", "JPG", Qt::ColorOnly)));
+			}
+			statisticWindow->acquireSemaphore(1);
+
 			ui->de_from_date->setMinimumDate(airportDB->getMinDateDeparture());
 			ui->de_from_date->setMaximumDate(airportDB->getMaxDateDeparture());
 			ui->de_to_date->setMinimumDate(airportDB->getMinDateDeparture());
 			ui->de_to_date->setMaximumDate(airportDB->getMaxDateDeparture());
+
+			--counter;
+			if(counter < MIN_THREADS_COUNT){
+				ui->centralwidget->setEnabled(true);
+				lb_statusLabel->setPixmap((QPixmap(":/img/Green.jpg", "JPG", Qt::ColorOnly)));
+			}
+			statisticWindow->releaseSemaphore(1);
 		});
 	}
 	return;
@@ -304,10 +337,24 @@ void MainWindow::on_rb_arrival_clicked(bool checked)
 	{
 		auto f = QtConcurrent::run([&]()
 		{
+			++counter;
+			if(counter > MAX_THREADS_COUNT){
+				ui->centralwidget->setEnabled(false);
+				lb_statusLabel->setPixmap((QPixmap(":/img/Yellow.jpg", "JPG", Qt::ColorOnly)));
+			}
+			statisticWindow->acquireSemaphore(1);
+
 			ui->de_from_date->setMinimumDate(airportDB->getMinDateArrival());
 			ui->de_from_date->setMaximumDate(airportDB->getMaxDateArrival());
 			ui->de_to_date->setMinimumDate(airportDB->getMinDateArrival());
 			ui->de_to_date->setMaximumDate(airportDB->getMaxDateArrival());
+
+			--counter;
+			if(counter < MIN_THREADS_COUNT){
+				ui->centralwidget->setEnabled(true);
+				lb_statusLabel->setPixmap((QPixmap(":/img/Green.jpg", "JPG", Qt::ColorOnly)));
+			}
+			statisticWindow->releaseSemaphore(1);
 		});
 	}
 	return;
@@ -336,14 +383,40 @@ void MainWindow::on_pb_request_clicked()
 	{
 		auto f = QtConcurrent::run([&]()
 		{
+			++counter;
+			if(counter > MAX_THREADS_COUNT){
+				ui->centralwidget->setEnabled(false);
+				lb_statusLabel->setPixmap((QPixmap(":/img/Yellow.jpg", "JPG", Qt::ColorOnly)));
+			}
+			statisticWindow->acquireSemaphore(1);
+
 			airportDB->getDepartures(ui->de_from_date->date(), ui->de_to_date->date(), ui->lb_airport_code->text());
+
+			--counter;
+			if(counter < MIN_THREADS_COUNT){
+				ui->centralwidget->setEnabled(true);
+				lb_statusLabel->setPixmap((QPixmap(":/img/Green.jpg", "JPG", Qt::ColorOnly)));
+			}
 		});
 	}
 	else if(ui->rb_arrival->isChecked())
 	{
 		auto f = QtConcurrent::run([&]()
 		{
+			++counter;
+			if(counter > MAX_THREADS_COUNT){
+				ui->centralwidget->setEnabled(false);
+				lb_statusLabel->setPixmap((QPixmap(":/img/Yellow.jpg", "JPG", Qt::ColorOnly)));
+			}
+			statisticWindow->acquireSemaphore(1);
+
 			airportDB->getArrivals(ui->de_from_date->date(), ui->de_to_date->date(), ui->lb_airport_code->text());
+
+			--counter;
+			if(counter < MIN_THREADS_COUNT){
+				ui->centralwidget->setEnabled(true);
+				lb_statusLabel->setPixmap((QPixmap(":/img/Green.jpg", "JPG", Qt::ColorOnly)));
+			}
 		});
 	}
 	return;
@@ -388,6 +461,10 @@ void MainWindow::on_mb_db_connection_triggered()
 	else
 	{
 		ui->mb_db_connection->setText("Отключиться от БД");
-		auto f = QtConcurrent::run([&](){initializeDB();});
+		auto f = QtConcurrent::run([&]()
+		{			
+			statisticWindow->acquireSemaphore(1);
+			initializeDB();			
+		});
 	}
 }

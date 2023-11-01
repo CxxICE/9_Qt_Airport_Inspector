@@ -6,9 +6,11 @@
 #include <QPixmap>
 #include <QScopedPointer>
 #include <QThread>
-#include <QtConcurrent>
 #include <QDataWidgetMapper>
 #include <QStandardItemModel>
+#include <QtConcurrent>
+#include <QSemaphore>
+#include <QAtomicInt>
 
 #include "statistic.h"
 #include "logindialogsql.h"
@@ -66,7 +68,7 @@ private:
 
 	QMessageBox				*msgBox;
 	LoginDialogSql			*dialogSQL;
-	Statistic				*statisticWindow;
+	Statistic				*statisticWindow;	
 
 	//база данных и данные для подключения
 	AirportDB				*airportDB;
@@ -90,6 +92,10 @@ private:
 
 	bool					disconnectionActivated;
 	bool					msgBoxClosed;
+
+	//счетчик созданных потоков в QtConcurrent --> при превышении макисмального числа потоков виджет блокирукется,
+	//пока число потоков не снизится до минимального
+	QAtomicInt counter;
 
 	//метод по подключению БД и загрузки из нее необходимых для MainWindow данных:
 	//названия и коды аэропортов

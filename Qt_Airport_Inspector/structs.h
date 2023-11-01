@@ -3,6 +3,9 @@
 
 #include <QString>
 
+#define MAX_THREADS_COUNT 3
+#define MIN_THREADS_COUNT 1
+
 struct DBConnectionData
 {
 	QString host;
