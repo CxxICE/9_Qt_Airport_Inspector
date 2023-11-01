@@ -246,6 +246,11 @@ void MainWindow::receiveFlightsModel(QSqlQueryModel *flightsModel)
 	{
 		for (int x = 0; x < flightsModel->columnCount(); ++x)
 		{			
+			if(counter > 1)
+			{
+				statisticWindow->releaseSemaphore(1);
+				return;
+			}
 			//размещение item с placement new
 			QStandardItem *item = new (items + (flightsModel->columnCount()*y + x)*sizeof(QStandardItem))QStandardItem;
 

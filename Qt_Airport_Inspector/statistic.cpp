@@ -155,6 +155,11 @@ void Statistic::receiveMonthsModel(QSqlQueryModel *monthsModel)
 	int rows = monthsModel->rowCount();
 	for (int y = 0; y < rows; ++y)
 	{
+		if(counter > 1)
+		{
+			semaphore.release(1);
+			return;
+		}
 		QString curMonth;
 		curMonth = intToMonthRus(monthsModel->index(y,0).data().toInt());
 		ui->cb_month_2->addItem(curMonth);
@@ -374,6 +379,11 @@ void Statistic::receiveStatisticYear(QVector<QPair<QDate, double>> *arrivalsCoun
 	//график прилетов
 	for (auto it = arrivalsCount->constBegin(); it != arrivalsCount->constEnd(); ++it)
 	{
+		if(counter > 1)
+		{
+			semaphore.release(1);
+			return;
+		}
 		arrivalsSet->append(it->second);
 		xAxisYear->append(intToMonthRus(it->first.month()) + "-" + QString::number(it->first.year()));
 		maxArrivals = maxArrivals < it->second ? it->second : maxArrivals;
@@ -382,6 +392,11 @@ void Statistic::receiveStatisticYear(QVector<QPair<QDate, double>> *arrivalsCoun
 	//график вылетов
 	for (auto it = departuresCount->constBegin(); it != departuresCount->constEnd(); ++it)
 	{
+		if(counter > 1)
+		{
+			semaphore.release(1);
+			return;
+		}
 		departuresSet->append(it->second);
 		xAxisYear->append(intToMonthRus(it->first.month()) + "-" + QString::number(it->first.year()));
 		maxDepartures = maxDepartures < it->second ? it->second : maxDepartures;
