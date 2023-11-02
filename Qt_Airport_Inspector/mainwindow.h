@@ -95,7 +95,8 @@ private:
 
 	//счетчик созданных потоков в QtConcurrent --> при превышении макисмального числа потоков виджет блокирукется,
 	//пока число потоков не снизится до минимального
-	QAtomicInt counter;
+	QAtomicInt counterRadioButton;
+	QAtomicInt counterFlightsModel;
 
 	//метод по подключению БД и загрузки из нее необходимых для MainWindow данных:
 	//названия и коды аэропортов

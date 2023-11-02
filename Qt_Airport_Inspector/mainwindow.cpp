@@ -10,7 +10,8 @@ MainWindow::MainWindow(QWidget *parent)
 	msgBoxClosed = false;
 	setWindowIcon(QIcon(":/img/airplane.ico"));
 	ui->centralwidget->setEnabled(false);
-	counter = 0;
+	counterRadioButton = 0;
+	counterFlightsModel = 0;
 
 	//установка фильтра против исчезновения статуса при наведении мыши на меню
 	ui->menubar->installEventFilter(this);
@@ -229,11 +230,6 @@ void MainWindow::receiveAirportsModel(QSqlQueryModel *airportsModel)
 //слот маппирования данных о перелетах на tableview
 void MainWindow::receiveFlightsModel(QSqlQueryModel *flightsModel)
 {
-	if(counter > EARLY_EXIT_COUNT)
-	{
-		statisticWindow->releaseSemaphore(1);
-		return;
-	}
 	ui->tv_flights->setModel(nullptr);
 	resetItemModel();
 
@@ -245,12 +241,7 @@ void MainWindow::receiveFlightsModel(QSqlQueryModel *flightsModel)
 	for (int y = 0; y < flightsModel->rowCount(); ++y)
 	{
 		for (int x = 0; x < flightsModel->columnCount(); ++x)
-		{			
-			if(counter > EARLY_EXIT_COUNT)
-			{
-				statisticWindow->releaseSemaphore(1);
-				return;
-			}
+		{
 			//размещение item с placement new
 			QStandardItem *item = new (items + (flightsModel->columnCount()*y + x)*sizeof(QStandardItem))QStandardItem;
 
@@ -294,7 +285,7 @@ void MainWindow::receiveFlightsModel(QSqlQueryModel *flightsModel)
 
 	this->resize(oldWinSize + newTableSize - oldTableSize + 20, this->height());
 	ui->tv_flights->scrollToTop();
-	if(counter < MIN_THREADS_COUNT)
+	if(counterFlightsModel < MIN_THREADS_COUNT)
 	{
 		lb_statusLabel->setPixmap((QPixmap(":/img/Green.jpg", "JPG", Qt::ColorOnly)));
 	}
@@ -310,13 +301,13 @@ void MainWindow::on_rb_departure_clicked(bool checked)
 {
 	if(checked && airportDB->isOpen())
 	{
+		++counterRadioButton;
+		if(counterRadioButton > MAX_THREADS_COUNT){
+			ui->centralwidget->setEnabled(false);
+			lb_statusLabel->setPixmap((QPixmap(":/img/Yellow.jpg", "JPG", Qt::ColorOnly)));
+		}
 		auto f = QtConcurrent::run([&]()
-		{
-			++counter;
-			if(counter > MAX_THREADS_COUNT){
-				ui->centralwidget->setEnabled(false);
-				lb_statusLabel->setPixmap((QPixmap(":/img/Yellow.jpg", "JPG", Qt::ColorOnly)));
-			}
+		{			
 			statisticWindow->acquireSemaphore(1);
 
 			ui->de_from_date->setMinimumDate(airportDB->getMinDateDeparture());
@@ -324,8 +315,8 @@ void MainWindow::on_rb_departure_clicked(bool checked)
 			ui->de_to_date->setMinimumDate(airportDB->getMinDateDeparture());
 			ui->de_to_date->setMaximumDate(airportDB->getMaxDateDeparture());
 
-			--counter;
-			if(counter < MIN_THREADS_COUNT){
+			--counterRadioButton;
+			if(counterRadioButton < MIN_THREADS_COUNT){
 				ui->centralwidget->setEnabled(true);
 				lb_statusLabel->setPixmap((QPixmap(":/img/Green.jpg", "JPG", Qt::ColorOnly)));
 			}
@@ -340,13 +331,13 @@ void MainWindow::on_rb_arrival_clicked(bool checked)
 {
 	if(checked && airportDB->isOpen())
 	{
+		++counterRadioButton;
+		if(counterRadioButton > MAX_THREADS_COUNT){
+			ui->centralwidget->setEnabled(false);
+			lb_statusLabel->setPixmap((QPixmap(":/img/Yellow.jpg", "JPG", Qt::ColorOnly)));
+		}
 		auto f = QtConcurrent::run([&]()
-		{
-			++counter;
-			if(counter > MAX_THREADS_COUNT){
-				ui->centralwidget->setEnabled(false);
-				lb_statusLabel->setPixmap((QPixmap(":/img/Yellow.jpg", "JPG", Qt::ColorOnly)));
-			}
+		{			
 			statisticWindow->acquireSemaphore(1);
 
 			ui->de_from_date->setMinimumDate(airportDB->getMinDateArrival());
@@ -354,8 +345,8 @@ void MainWindow::on_rb_arrival_clicked(bool checked)
 			ui->de_to_date->setMinimumDate(airportDB->getMinDateArrival());
 			ui->de_to_date->setMaximumDate(airportDB->getMaxDateArrival());
 
-			--counter;
-			if(counter < MIN_THREADS_COUNT){
+			--counterRadioButton;
+			if(counterRadioButton < MIN_THREADS_COUNT){
 				ui->centralwidget->setEnabled(true);
 				lb_statusLabel->setPixmap((QPixmap(":/img/Green.jpg", "JPG", Qt::ColorOnly)));
 			}
@@ -386,19 +377,19 @@ void MainWindow::on_pb_request_clicked()
 	this->lb_statusLabel->setPixmap((QPixmap(":/img/Yellow.jpg", "JPG", Qt::ColorOnly)));
 	if(ui->rb_departure->isChecked())
 	{
+		++counterFlightsModel;
+		if(counterFlightsModel > MAX_THREADS_COUNT){
+			ui->centralwidget->setEnabled(false);
+			lb_statusLabel->setPixmap((QPixmap(":/img/Yellow.jpg", "JPG", Qt::ColorOnly)));
+		}
 		auto f = QtConcurrent::run([&]()
-		{
-			++counter;
-			if(counter > MAX_THREADS_COUNT){
-				ui->centralwidget->setEnabled(false);
-				lb_statusLabel->setPixmap((QPixmap(":/img/Yellow.jpg", "JPG", Qt::ColorOnly)));
-			}
+		{			
 			statisticWindow->acquireSemaphore(1);
 
 			airportDB->getDepartures(ui->de_from_date->date(), ui->de_to_date->date(), ui->lb_airport_code->text());
 
-			--counter;
-			if(counter < MIN_THREADS_COUNT){
+			--counterFlightsModel;
+			if(counterFlightsModel < MIN_THREADS_COUNT){
 				ui->centralwidget->setEnabled(true);
 				lb_statusLabel->setPixmap((QPixmap(":/img/Green.jpg", "JPG", Qt::ColorOnly)));
 			}
@@ -406,19 +397,20 @@ void MainWindow::on_pb_request_clicked()
 	}
 	else if(ui->rb_arrival->isChecked())
 	{
+		++counterFlightsModel;
+		if(counterFlightsModel > MAX_THREADS_COUNT){
+			ui->centralwidget->setEnabled(false);
+			lb_statusLabel->setPixmap((QPixmap(":/img/Yellow.jpg", "JPG", Qt::ColorOnly)));
+		}
 		auto f = QtConcurrent::run([&]()
 		{
-			++counter;
-			if(counter > MAX_THREADS_COUNT){
-				ui->centralwidget->setEnabled(false);
-				lb_statusLabel->setPixmap((QPixmap(":/img/Yellow.jpg", "JPG", Qt::ColorOnly)));
-			}
+
 			statisticWindow->acquireSemaphore(1);
 
 			airportDB->getArrivals(ui->de_from_date->date(), ui->de_to_date->date(), ui->lb_airport_code->text());
 
-			--counter;
-			if(counter < MIN_THREADS_COUNT){
+			--counterFlightsModel;
+			if(counterFlightsModel < MIN_THREADS_COUNT){
 				ui->centralwidget->setEnabled(true);
 				lb_statusLabel->setPixmap((QPixmap(":/img/Green.jpg", "JPG", Qt::ColorOnly)));
 			}

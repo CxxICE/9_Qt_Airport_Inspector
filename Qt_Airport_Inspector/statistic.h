@@ -86,7 +86,10 @@ private:
 
 	//счетчик созданных потоков в QtConcurrent --> при превышении макисмального числа потоков виджет блокирукется,
 	//пока число потоков не снизится ниже минимального
-	QAtomicInt counter;
+	QAtomicInt counterMonthsModel;
+	QAtomicInt counterYearsModel;
+	QAtomicInt counterStatisticMonth;
+	QAtomicInt counterStatisticYear;
 
 	//вспомогательные методы преобразования названий месяцев в числа и обратно
 	int MonthRusToInt(QString month);
