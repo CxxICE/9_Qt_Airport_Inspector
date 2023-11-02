@@ -77,9 +77,6 @@ void Statistic::setStatistic(QString _airportName, QString _airportCode)
 	airportCode = _airportCode;
 	auto f = QtConcurrent::run([&]()
 	{
-		++counter;
-
-		if(counter > MAX_THREADS_COUNT){ui->centralwidget->setEnabled(false);}
 		semaphore.acquire(1);
 
 		airportDB->getYears();
@@ -89,8 +86,6 @@ void Statistic::setStatistic(QString _airportName, QString _airportCode)
 		int year = yearsModel->data(yearsModel->index(yearsModel->rowCount() - 1, 0)).toInt();
 		airportDB->getMonths(year);
 
-		--counter;
-		if(counter < MIN_THREADS_COUNT){ui->centralwidget->setEnabled(true);}
 	});
 }
 
@@ -117,11 +112,6 @@ int Statistic::availableSemaphores()
 //слот приема модели с перечнем доступных в БД годов
 void Statistic::receiveYearsModel(QSqlQueryModel *_yearsModel)
 {
-	if(counter > 1)
-	{
-		semaphore.release(1);
-		return;
-	}
 	ui->cb_year_1->setModel(_yearsModel);
 	ui->cb_year_1->setModelColumn(0);
 	ui->cb_year_2->setModel(_yearsModel);
@@ -146,7 +136,7 @@ void Statistic::receiveYearsModel(QSqlQueryModel *_yearsModel)
 //слот приема модели с перечнем месяцев доступных в БД по заданному году
 void Statistic::receiveMonthsModel(QSqlQueryModel *monthsModel)
 {
-	if(counter > 1)
+	if(counter > EARLY_EXIT_COUNT)
 	{
 		semaphore.release(1);
 		return;
@@ -155,7 +145,7 @@ void Statistic::receiveMonthsModel(QSqlQueryModel *monthsModel)
 	int rows = monthsModel->rowCount();
 	for (int y = 0; y < rows; ++y)
 	{
-		if(counter > 1)
+		if(counter > EARLY_EXIT_COUNT)
 		{
 			semaphore.release(1);
 			return;
@@ -184,7 +174,7 @@ void Statistic::receiveMonthsModel(QSqlQueryModel *monthsModel)
 //слот приема статистики за месяц
 void Statistic::receiveStatisticMonth(QVector<QPair<QDate, double>> *arrivalsCount, QVector<QPair<QDate, double>> *departuresCount)
 {
-	if(counter > 1)
+	if(counter > EARLY_EXIT_COUNT)
 	{
 		semaphore.release(1);
 		return;
@@ -209,7 +199,7 @@ void Statistic::receiveStatisticMonth(QVector<QPair<QDate, double>> *arrivalsCou
 	//график прилетов
 	for (auto it = arrivalsCount->constBegin(); it != arrivalsCount->constEnd(); ++it)
 	{
-		if(counter > 1)
+		if(counter > EARLY_EXIT_COUNT)
 		{
 			semaphore.release(1);
 			return;
@@ -222,7 +212,7 @@ void Statistic::receiveStatisticMonth(QVector<QPair<QDate, double>> *arrivalsCou
 	//график вылетов
 	for (auto it = departuresCount->constBegin(); it != departuresCount->constEnd(); ++it)
 	{
-		if(counter > 1)
+		if(counter > EARLY_EXIT_COUNT)
 		{
 			semaphore.release(1);
 			return;
@@ -242,7 +232,7 @@ void Statistic::receiveStatisticMonth(QVector<QPair<QDate, double>> *arrivalsCou
 	auto it_b = biggerCount->constBegin();
 	while(it_l < lessCount->constEnd() && it_b < biggerCount->constEnd())
 	{
-		if(counter > 1)
+		if(counter > EARLY_EXIT_COUNT)
 		{
 			semaphore.release(1);
 			return;
@@ -273,12 +263,12 @@ void Statistic::receiveStatisticMonth(QVector<QPair<QDate, double>> *arrivalsCou
 			++it_b;
 		}
 	}
-	//если какой-либо массиив не был пройден до конца, дозаписываем его в график
+	//если какой-либо массив не был пройден до конца, дозаписываем его в график
 	if(it_l == lessCount->constEnd() && it_b != biggerCount->constEnd())
 	{
 		do
 		{
-			if(counter > 1)
+			if(counter > EARLY_EXIT_COUNT)
 			{
 				semaphore.release(1);
 				return;
@@ -294,7 +284,7 @@ void Statistic::receiveStatisticMonth(QVector<QPair<QDate, double>> *arrivalsCou
 	{
 		do
 		{
-			if(counter > 1)
+			if(counter > EARLY_EXIT_COUNT)
 			{
 				semaphore.release(1);
 				return;
@@ -351,7 +341,7 @@ void Statistic::receiveStatisticMonth(QVector<QPair<QDate, double>> *arrivalsCou
 //слот приема статистики за год
 void Statistic::receiveStatisticYear(QVector<QPair<QDate, double>> *arrivalsCount, QVector<QPair<QDate, double>> *departuresCount)
 {
-	if(counter > 1)
+	if(counter > EARLY_EXIT_COUNT)
 	{
 		semaphore.release(1);
 		return;
@@ -379,7 +369,7 @@ void Statistic::receiveStatisticYear(QVector<QPair<QDate, double>> *arrivalsCoun
 	//график прилетов
 	for (auto it = arrivalsCount->constBegin(); it != arrivalsCount->constEnd(); ++it)
 	{
-		if(counter > 1)
+		if(counter > EARLY_EXIT_COUNT)
 		{
 			semaphore.release(1);
 			return;
@@ -392,7 +382,7 @@ void Statistic::receiveStatisticYear(QVector<QPair<QDate, double>> *arrivalsCoun
 	//график вылетов
 	for (auto it = departuresCount->constBegin(); it != departuresCount->constEnd(); ++it)
 	{
-		if(counter > 1)
+		if(counter > EARLY_EXIT_COUNT)
 		{
 			semaphore.release(1);
 			return;
@@ -480,6 +470,7 @@ void Statistic::on_cb_month_2_activated(int index)
 	{
 		++counter;
 		if(counter > MAX_THREADS_COUNT){ui->centralwidget->setEnabled(false);}
+
 		semaphore.acquire(1);
 
 		int month = MonthRusToInt(ui->cb_month_2->currentText());

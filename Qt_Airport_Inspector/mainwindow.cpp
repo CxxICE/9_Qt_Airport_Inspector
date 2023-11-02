@@ -229,7 +229,7 @@ void MainWindow::receiveAirportsModel(QSqlQueryModel *airportsModel)
 //слот маппирования данных о перелетах на tableview
 void MainWindow::receiveFlightsModel(QSqlQueryModel *flightsModel)
 {
-	if(counter > 1)
+	if(counter > EARLY_EXIT_COUNT)
 	{
 		statisticWindow->releaseSemaphore(1);
 		return;
@@ -246,7 +246,7 @@ void MainWindow::receiveFlightsModel(QSqlQueryModel *flightsModel)
 	{
 		for (int x = 0; x < flightsModel->columnCount(); ++x)
 		{			
-			if(counter > 1)
+			if(counter > EARLY_EXIT_COUNT)
 			{
 				statisticWindow->releaseSemaphore(1);
 				return;

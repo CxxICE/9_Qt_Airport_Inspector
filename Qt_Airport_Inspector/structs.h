@@ -5,6 +5,7 @@
 
 #define MAX_THREADS_COUNT 3
 #define MIN_THREADS_COUNT 1
+#define EARLY_EXIT_COUNT 0
 
 struct DBConnectionData
 {
