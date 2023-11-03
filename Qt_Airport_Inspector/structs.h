@@ -3,9 +3,9 @@
 
 #include <QString>
 
-#define MAX_THREADS_COUNT 3
+#define MAX_THREADS_COUNT 4
 #define MIN_THREADS_COUNT 1
-#define EARLY_EXIT_COUNT 0
+#define EARLY_EXIT_MS 100
 
 struct DBConnectionData
 {

@@ -42,20 +42,21 @@ private slots:
 
 	//слоты приема моделей о годах и месяцах доступных в БД
 	void receiveYearsModel(QSqlQueryModel* yearsModel);
-	void receiveMonthsModel(QSqlQueryModel* monthsModel);
+	void receiveMonthsModel(QSqlQueryModel* monthsModel, int year);
 
 	//слоты приема данных о статистике из БД
 	void receiveStatisticMonth(QVector<QPair<QDate, double>> *arrivalsCount, QVector<QPair<QDate, double>> *departuresCount);
 	void receiveStatisticYear(QVector<QPair<QDate, double>> *arrivalsCount, QVector<QPair<QDate, double>> *departuresCount);
 
 	//слоты выбора месяцев и годов в QComboBox
-	void on_cb_year_1_activated(int index);
+	void on_cb_year_1_textActivated(const QString &arg1);
 	void on_cb_all_years_toggled(bool checked);
-	void on_cb_year_2_activated(int index);
-	void on_cb_month_2_activated(int index);
+	void on_cb_year_2_textActivated(const QString &arg1);
+	void on_cb_month_2_textActivated(const QString &arg1);
 
 	//слоты выбора вкладки
 	void receiveTabIndex(int index);
+
 
 private:
 	Ui::Statistic		*ui;
@@ -97,6 +98,9 @@ private:
 
 	//вспомогательный метод отсечения неполных месяцев
 	void truncDays(QDate &from, QDate &to);
+
+
+	void cb_month2_activated_year_month(int year, int month);
 
 };
 

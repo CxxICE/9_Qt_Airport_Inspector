@@ -61,7 +61,7 @@ signals:
    //сигналы с моделями для настройки QComboBox на основе данных в БД
    void sig_SendAirportsModel(QSqlQueryModel *airportsModel);
    void sig_SendYearsModel(QSqlQueryModel *yearsModel);
-   void sig_SendMonthsModel(QSqlQueryModel *monthsModel);
+   void sig_SendMonthsModel(QSqlQueryModel *monthsModel, int year);
 
    //сигнал с моделью с данными о запрошенных перелетах
    void sig_SendFlightsModel(QSqlQueryModel *flightsModel);

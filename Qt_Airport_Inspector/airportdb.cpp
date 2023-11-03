@@ -115,7 +115,7 @@ void AirportDB::getMonths(int year)
 
 	if(monthsModel->lastError().type() == 0)
 	{
-		emit sig_SendMonthsModel(monthsModel);
+		emit sig_SendMonthsModel(monthsModel, year);
 	}
 	else
 	{
