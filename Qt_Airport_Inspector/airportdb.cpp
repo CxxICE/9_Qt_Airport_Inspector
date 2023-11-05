@@ -104,7 +104,7 @@ void AirportDB::getAirports()
 }
 
 void AirportDB::getMonths(int year)
-{	
+{	   
 	monthsModel->clear();
 	QString queryText = "SELECT EXTRACT(MONTH FROM scheduled_departure::DATE) as \"Month\" "
 						"FROM bookings.flights f "

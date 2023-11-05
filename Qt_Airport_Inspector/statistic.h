@@ -87,8 +87,7 @@ private:
 
 	//счетчик созданных потоков в QtConcurrent --> при превышении макисмального числа потоков виджет блокирукется,
 	//пока число потоков не снизится ниже минимального
-	QAtomicInt counterMonthsModel;
-	QAtomicInt counterYearsModel;
+	QAtomicInt counterMonthsModel;	
 	QAtomicInt counterStatisticMonth;
 	QAtomicInt counterStatisticYear;
 
@@ -99,8 +98,9 @@ private:
 	//вспомогательный метод отсечения неполных месяцев
 	void truncDays(QDate &from, QDate &to);
 
-
-	void cb_month2_activated_year_month(int year, int month);
+    //вспомогательный метод для передачи выбранного года в cb_year_2 при запросе месяца,
+    //т.к. пользователь может сменить год, пока другой поток обрабатывает запрос статистики по месяцу
+    void cb_month2_activated_year_month(int year, int month, bool needSemaphoreAcquire);
 
 };
 

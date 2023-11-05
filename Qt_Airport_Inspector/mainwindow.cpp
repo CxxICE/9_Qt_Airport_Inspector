@@ -377,17 +377,29 @@ void MainWindow::on_pb_request_clicked()
 	this->lb_statusLabel->setPixmap((QPixmap(":/img/Yellow.jpg", "JPG", Qt::ColorOnly)));
 	if(ui->rb_departure->isChecked())
 	{
-		++counterFlightsModel;
+        int prev = ++counterFlightsModel;
 		if(counterFlightsModel > MAX_THREADS_COUNT){
 			ui->centralwidget->setEnabled(false);
 			lb_statusLabel->setPixmap((QPixmap(":/img/Yellow.jpg", "JPG", Qt::ColorOnly)));
 		}
-		auto f = QtConcurrent::run([&]()
-		{			
-			statisticWindow->acquireSemaphore(1);
-
-			airportDB->getDepartures(ui->de_from_date->date(), ui->de_to_date->date(), ui->lb_airport_code->text());
-
+        auto f = QtConcurrent::run([&, prev]()
+        {
+            QThread::msleep(EARLY_EXIT_MS);
+            int next = counterFlightsModel;
+            if(next <= prev)
+            {
+                statisticWindow->acquireSemaphore(1);
+                if(counterFlightsModel == 1)
+                {
+                   airportDB->getDepartures(ui->de_from_date->date(), ui->de_to_date->date(), ui->lb_airport_code->text());
+                }
+                else
+                {
+                    --counterFlightsModel;
+                    statisticWindow->releaseSemaphore(1);
+                    return;
+                }
+            }
 			--counterFlightsModel;
 			if(counterFlightsModel < MIN_THREADS_COUNT){
 				ui->centralwidget->setEnabled(true);
@@ -397,18 +409,29 @@ void MainWindow::on_pb_request_clicked()
 	}
 	else if(ui->rb_arrival->isChecked())
 	{
-		++counterFlightsModel;
+        int prev = ++counterFlightsModel;
 		if(counterFlightsModel > MAX_THREADS_COUNT){
 			ui->centralwidget->setEnabled(false);
 			lb_statusLabel->setPixmap((QPixmap(":/img/Yellow.jpg", "JPG", Qt::ColorOnly)));
 		}
-		auto f = QtConcurrent::run([&]()
+        auto f = QtConcurrent::run([&, prev]()
 		{
-
-			statisticWindow->acquireSemaphore(1);
-
-			airportDB->getArrivals(ui->de_from_date->date(), ui->de_to_date->date(), ui->lb_airport_code->text());
-
+            QThread::msleep(EARLY_EXIT_MS);
+            int next = counterFlightsModel;
+            if(next <= prev)
+            {
+                statisticWindow->acquireSemaphore(1);
+                if(counterFlightsModel == 1)
+                {
+                   airportDB->getArrivals(ui->de_from_date->date(), ui->de_to_date->date(), ui->lb_airport_code->text());
+                }
+                else
+                {
+                   --counterFlightsModel;
+                   statisticWindow->releaseSemaphore(1);
+                   return;
+                }
+            }
 			--counterFlightsModel;
 			if(counterFlightsModel < MIN_THREADS_COUNT){
 				ui->centralwidget->setEnabled(true);
