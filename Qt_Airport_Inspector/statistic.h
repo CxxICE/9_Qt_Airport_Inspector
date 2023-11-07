@@ -15,6 +15,7 @@
 #include <QtConcurrent>
 #include <QSemaphore>
 #include <QAtomicInt>
+#include <QThreadPool>
 
 #include "airportdb.h"
 
@@ -33,10 +34,11 @@ public:
 	//получение данных от MainWindow об аэропорте
 	void setStatistic(QString _airportName, QString _airportCode);
 
-	//методы для работы с Semaphore класса Statistic из MainWindow
+	//методы для работы с Semaphore и pool класса Statistic из MainWindow
 	void acquireSemaphore(int i);
 	void releaseSemaphore(int i);
 	int availableSemaphores();
+	QThreadPool *getPool();
 
 private slots:
 
@@ -66,6 +68,9 @@ private:
 	QString				airportCode;
 	QSqlQueryModel		*yearsModel;
 	QSemaphore			semaphore;
+
+	//пулл потоков(один поток для обеспечения поледовательности выполнения внешних задач)
+	QThreadPool			*pool;
 
 	//график статистики по месяцам года
 	QStackedBarSeries	*yearGraph;
@@ -100,7 +105,7 @@ private:
 
     //вспомогательный метод для передачи выбранного года в cb_year_2 при запросе месяца,
     //т.к. пользователь может сменить год, пока другой поток обрабатывает запрос статистики по месяцу
-    void cb_month2_activated_year_month(int year, int month, bool needSemaphoreAcquire);
+	void cb_month2_activated_year_month(int year, int month);
 
 };
 

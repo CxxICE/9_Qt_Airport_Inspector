@@ -21,6 +21,9 @@ Statistic::Statistic(AirportDB *database, QWidget *parent) :
 	counterStatisticYear = 0;
 	semaphore.release(1);
 
+	pool = new QThreadPool(this);
+	pool->setMaxThreadCount(1);
+
 	yearGraph = new QStackedBarSeries(this);
 	arrivalsSet = new QBarSet("Прибывающие рейсы", this);
 	departuresSet = new QBarSet("Вылетающие рейсы", this);
@@ -77,12 +80,10 @@ void Statistic::setStatistic(QString _airportName, QString _airportCode)
 	ui->cb_all_years->setChecked(true);
 	ui->lb_airport->setText(_airportName + " " + _airportCode);	
 	airportCode = _airportCode;
-	auto f = QtConcurrent::run([&]()
+	auto f = QtConcurrent::run(pool, [&]()
 	{
 		semaphore.acquire(1);
-
 		airportDB->getYears();
-
 		semaphore.acquire(1);
         //после получения годов заправшиваем существующие месяцы для последнего года существующего в БД
 		int year = yearsModel->data(yearsModel->index(yearsModel->rowCount() - 1, 0)).toInt();
@@ -106,6 +107,11 @@ void Statistic::releaseSemaphore(int i)
 int Statistic::availableSemaphores()
 {
 	return semaphore.available();
+}
+
+QThreadPool *Statistic::getPool()
+{
+	return pool;
 }
 
 //СЛОТЫ ПРИЕМА МОДЕЛЕЙ
@@ -138,7 +144,7 @@ void Statistic::receiveYearsModel(QSqlQueryModel *_yearsModel)
 //слот приема модели с перечнем месяцев доступных в БД по заданному году
 void Statistic::receiveMonthsModel(QSqlQueryModel *monthsModel, int year)
 {
-    QString curMonth;
+	QString curMonth;
 	ui->cb_month_2->clear();
 	int rows = monthsModel->rowCount();
 	for (int y = 0; y < rows; ++y)
@@ -151,14 +157,13 @@ void Statistic::receiveMonthsModel(QSqlQueryModel *monthsModel, int year)
 
 	if(ui->tabWidget->currentIndex() != 1)
 	{
-		ui->tabWidget->setCurrentIndex(1);
-        semaphore.release(1);
+		ui->tabWidget->setCurrentIndex(1);        
 	}
 	else
 	{
-        cb_month2_activated_year_month(year, MonthRusToInt(ui->cb_month_2->currentText()), false);
+		cb_month2_activated_year_month(year, MonthRusToInt(ui->cb_month_2->currentText()));
 	}
-
+	semaphore.release(1);
 
 }
 
@@ -168,7 +173,7 @@ void Statistic::receiveMonthsModel(QSqlQueryModel *monthsModel, int year)
 //слот приема статистики за месяц
 void Statistic::receiveStatisticMonth(QVector<QPair<QDate, double>> *arrivalsCount, QVector<QPair<QDate, double>> *departuresCount)
 {
-    if(monthChart->series().isEmpty() == false)
+	if(monthChart->series().isEmpty() == false)
 	{
 		monthGraphArrivals->clear();
 		monthGraphDepartures->clear();
@@ -364,15 +369,14 @@ void Statistic::receiveStatisticYear(QVector<QPair<QDate, double>> *arrivalsCoun
 void Statistic::on_cb_year_1_textActivated(const QString &arg1)
 {
 	int year = arg1.toInt();
-    int prev = ++counterStatisticYear;
-	if(counterStatisticYear > MAX_THREADS_COUNT){ui->centralwidget->setEnabled(false);}
-    auto f = QtConcurrent::run([&, year, prev]()
+    int prev = ++counterStatisticYear;	
+	auto f = QtConcurrent::run(pool, [&, year, prev]()
 	{
-        QThread::msleep(EARLY_EXIT_MS);
-        int next = counterStatisticYear;
+		QThread::msleep(EARLY_EXIT_MS);
+		int next = counterStatisticYear;
         if(next <= prev)
 		{
-            semaphore.acquire(1);
+			semaphore.acquire(1);
             if(counterStatisticYear == 1)
             {
                 QDate from = std::min(airportDB->getMinDateArrival(), airportDB->getMinDateDeparture());
@@ -399,19 +403,17 @@ void Statistic::on_cb_year_1_textActivated(const QString &arg1)
                 return;
             }
 		}
-        --counterStatisticYear;
-        if(counterStatisticYear < MIN_THREADS_COUNT){ui->centralwidget->setEnabled(true);}
+        --counterStatisticYear;		
 	});
 }
 
 //вывод в QComboBox cb_month_2 месяцев в году выбранном в cb_year_2
 void Statistic::on_cb_year_2_textActivated(const QString &arg1)
 {
-    ui->cb_month_2->setEnabled(false);
+	ui->cb_month_2->setEnabled(false);
 	int year = arg1.toInt();
-    int prev = ++counterMonthsModel;
-    if(counterStatisticMonth + counterMonthsModel > MAX_THREADS_COUNT){ui->centralwidget->setEnabled(false);}
-    auto f = QtConcurrent::run([&, year, prev]()
+    int prev = ++counterMonthsModel;	
+	auto f = QtConcurrent::run(pool, [&, year, prev]()
 	{
         QThread::msleep(EARLY_EXIT_MS);
         int next = counterMonthsModel;
@@ -429,8 +431,7 @@ void Statistic::on_cb_year_2_textActivated(const QString &arg1)
                 return;
             }
 		}        
-        --counterMonthsModel;
-        if(counterStatisticMonth + counterMonthsModel < MIN_THREADS_COUNT){ui->centralwidget->setEnabled(true);}
+        --counterMonthsModel;		
 	});    
 }
 
@@ -439,7 +440,7 @@ void Statistic::on_cb_month_2_textActivated(const QString &arg1)
 {
 	int year = ui->cb_year_2->currentText().toInt();
 	int month = MonthRusToInt(arg1);
-    cb_month2_activated_year_month(year, month, true);
+	cb_month2_activated_year_month(year, month);
 }
 
 //слот запроса статистики при выборе вкладки
@@ -457,20 +458,19 @@ void Statistic::receiveTabIndex(int index)
 
 //отображение статистики по всем годам сразу или по году выбранному в ComboBox cb_year_1
 void Statistic::on_cb_all_years_toggled(bool checked)
-{
+{	
 	if(checked)
 	{
 		ui->cb_year_1->setEnabled(false);
-        int prev = ++counterStatisticYear;
-        if(counterStatisticYear > MAX_THREADS_COUNT){ui->centralwidget->setEnabled(false);}
-        auto f = QtConcurrent::run([&, prev]()
+        int prev = ++counterStatisticYear;		
+		auto f = QtConcurrent::run(pool, [&, prev]()
 		{
-            QThread::msleep(EARLY_EXIT_MS);
+			QThread::msleep(EARLY_EXIT_MS);
             int next = counterStatisticYear;
             if(next <= prev)
             {
-                semaphore.acquire(1);
-                if(counterStatisticYear == 1)
+				semaphore.acquire(1);
+				if(counterStatisticYear == 1)
                 {
                     QDate from = std::min(airportDB->getMinDateArrival(), airportDB->getMinDateDeparture());
                     QDate to = std::max(airportDB->getMaxDateArrival(), airportDB->getMaxDateDeparture());
@@ -487,8 +487,7 @@ void Statistic::on_cb_all_years_toggled(bool checked)
                 }
 
             }
-            --counterStatisticYear;
-            if(counterStatisticYear < MIN_THREADS_COUNT){ui->centralwidget->setEnabled(true);}
+            --counterStatisticYear;			
 		});
 
 	}
@@ -506,20 +505,17 @@ void Statistic::on_cb_all_years_toggled(bool checked)
 
 //вспомогательный метод для передачи выбранного года в cb_year_2 при запросе месяца,
 //т.к. пользователь может сменить год, пока другой поток обрабатывает запрос статистики по месяцу
-void Statistic::cb_month2_activated_year_month(int year, int month, bool needSemaphoreAcquire)
+void Statistic::cb_month2_activated_year_month(int year, int month)
 {
-    int prev = ++counterStatisticMonth;
-    if(counterStatisticMonth + counterMonthsModel > MAX_THREADS_COUNT){ui->centralwidget->setEnabled(false);}
-    auto f = QtConcurrent::run([&, month, year, prev, needSemaphoreAcquire]()
+	int prev = ++counterStatisticMonth;
+	auto f = QtConcurrent::run(pool, [&, month, year, prev]()
     {
-        QThread::msleep(EARLY_EXIT_MS);
+		QThread::msleep(EARLY_EXIT_MS);
         int next = counterStatisticMonth;
         if(next <= prev)
-        {            
-            if(needSemaphoreAcquire)
-            {
-                semaphore.acquire(1);
-            }
+		{
+			semaphore.acquire(1);
+
             if(counterStatisticMonth == 1 && counterMonthsModel == 0)
             {                
                 QDate from;
@@ -538,8 +534,7 @@ void Statistic::cb_month2_activated_year_month(int year, int month, bool needSem
             }
 
         }
-        --counterStatisticMonth;
-        if(counterStatisticMonth + counterMonthsModel < MIN_THREADS_COUNT){ui->centralwidget->setEnabled(true);}
+        --counterStatisticMonth;		
     });
 }
 

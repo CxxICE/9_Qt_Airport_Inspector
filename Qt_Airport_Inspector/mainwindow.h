@@ -11,6 +11,7 @@
 #include <QtConcurrent>
 #include <QSemaphore>
 #include <QAtomicInt>
+#include <QThreadPool>
 
 #include "statistic.h"
 #include "logindialogsql.h"

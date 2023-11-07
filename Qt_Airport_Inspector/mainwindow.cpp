@@ -11,7 +11,7 @@ MainWindow::MainWindow(QWidget *parent)
 	setWindowIcon(QIcon(":/img/airplane.ico"));
 	ui->centralwidget->setEnabled(false);
 	counterRadioButton = 0;
-	counterFlightsModel = 0;
+	counterFlightsModel = 0;	
 
 	//установка фильтра против исчезновения статуса при наведении мыши на меню
 	ui->menubar->installEventFilter(this);
@@ -57,7 +57,7 @@ MainWindow::MainWindow(QWidget *parent)
 	connect(airportDB, &AirportDB::sig_SendFlightsModel, this, &MainWindow::receiveFlightsModel);
 
 	//запуск подключения БД и настройки MainWindow по данным из БД
-	auto f = QtConcurrent::run([&]()
+	auto f = QtConcurrent::run(statisticWindow->getPool(), [&]()
 	{		
 		statisticWindow->acquireSemaphore(1);
 		initializeDB();
@@ -285,7 +285,7 @@ void MainWindow::receiveFlightsModel(QSqlQueryModel *flightsModel)
 
 	this->resize(oldWinSize + newTableSize - oldTableSize + 20, this->height());
 	ui->tv_flights->scrollToTop();
-	if(counterFlightsModel < MIN_THREADS_COUNT)
+	if(counterFlightsModel < 1)
 	{
 		lb_statusLabel->setPixmap((QPixmap(":/img/Green.jpg", "JPG", Qt::ColorOnly)));
 	}
@@ -302,11 +302,10 @@ void MainWindow::on_rb_departure_clicked(bool checked)
 	if(checked && airportDB->isOpen())
 	{
 		++counterRadioButton;
-		if(counterRadioButton > MAX_THREADS_COUNT){
-			ui->centralwidget->setEnabled(false);
+		if(counterRadioButton > 1){
 			lb_statusLabel->setPixmap((QPixmap(":/img/Yellow.jpg", "JPG", Qt::ColorOnly)));
 		}
-		auto f = QtConcurrent::run([&]()
+		auto f = QtConcurrent::run(statisticWindow->getPool(), [&]()
 		{			
 			statisticWindow->acquireSemaphore(1);
 
@@ -316,8 +315,7 @@ void MainWindow::on_rb_departure_clicked(bool checked)
 			ui->de_to_date->setMaximumDate(airportDB->getMaxDateDeparture());
 
 			--counterRadioButton;
-			if(counterRadioButton < MIN_THREADS_COUNT){
-				ui->centralwidget->setEnabled(true);
+			if(counterRadioButton < 1){
 				lb_statusLabel->setPixmap((QPixmap(":/img/Green.jpg", "JPG", Qt::ColorOnly)));
 			}
 			statisticWindow->releaseSemaphore(1);
@@ -332,11 +330,10 @@ void MainWindow::on_rb_arrival_clicked(bool checked)
 	if(checked && airportDB->isOpen())
 	{
 		++counterRadioButton;
-		if(counterRadioButton > MAX_THREADS_COUNT){
-			ui->centralwidget->setEnabled(false);
+		if(counterRadioButton > 1){
 			lb_statusLabel->setPixmap((QPixmap(":/img/Yellow.jpg", "JPG", Qt::ColorOnly)));
 		}
-		auto f = QtConcurrent::run([&]()
+		auto f = QtConcurrent::run(statisticWindow->getPool(), [&]()
 		{			
 			statisticWindow->acquireSemaphore(1);
 
@@ -346,8 +343,7 @@ void MainWindow::on_rb_arrival_clicked(bool checked)
 			ui->de_to_date->setMaximumDate(airportDB->getMaxDateArrival());
 
 			--counterRadioButton;
-			if(counterRadioButton < MIN_THREADS_COUNT){
-				ui->centralwidget->setEnabled(true);
+			if(counterRadioButton < 1){
 				lb_statusLabel->setPixmap((QPixmap(":/img/Green.jpg", "JPG", Qt::ColorOnly)));
 			}
 			statisticWindow->releaseSemaphore(1);
@@ -377,12 +373,8 @@ void MainWindow::on_pb_request_clicked()
 	this->lb_statusLabel->setPixmap((QPixmap(":/img/Yellow.jpg", "JPG", Qt::ColorOnly)));
 	if(ui->rb_departure->isChecked())
 	{
-        int prev = ++counterFlightsModel;
-		if(counterFlightsModel > MAX_THREADS_COUNT){
-			ui->centralwidget->setEnabled(false);
-			lb_statusLabel->setPixmap((QPixmap(":/img/Yellow.jpg", "JPG", Qt::ColorOnly)));
-		}
-        auto f = QtConcurrent::run([&, prev]()
+        int prev = ++counterFlightsModel;		
+		auto f = QtConcurrent::run(statisticWindow->getPool(), [&, prev]()
         {
             QThread::msleep(EARLY_EXIT_MS);
             int next = counterFlightsModel;
@@ -400,21 +392,13 @@ void MainWindow::on_pb_request_clicked()
                     return;
                 }
             }
-			--counterFlightsModel;
-			if(counterFlightsModel < MIN_THREADS_COUNT){
-				ui->centralwidget->setEnabled(true);
-				lb_statusLabel->setPixmap((QPixmap(":/img/Green.jpg", "JPG", Qt::ColorOnly)));
-			}
+			--counterFlightsModel;			
 		});
 	}
 	else if(ui->rb_arrival->isChecked())
 	{
-        int prev = ++counterFlightsModel;
-		if(counterFlightsModel > MAX_THREADS_COUNT){
-			ui->centralwidget->setEnabled(false);
-			lb_statusLabel->setPixmap((QPixmap(":/img/Yellow.jpg", "JPG", Qt::ColorOnly)));
-		}
-        auto f = QtConcurrent::run([&, prev]()
+        int prev = ++counterFlightsModel;		
+		auto f = QtConcurrent::run(statisticWindow->getPool(), [&, prev]()
 		{
             QThread::msleep(EARLY_EXIT_MS);
             int next = counterFlightsModel;
@@ -432,11 +416,7 @@ void MainWindow::on_pb_request_clicked()
                    return;
                 }
             }
-			--counterFlightsModel;
-			if(counterFlightsModel < MIN_THREADS_COUNT){
-				ui->centralwidget->setEnabled(true);
-				lb_statusLabel->setPixmap((QPixmap(":/img/Green.jpg", "JPG", Qt::ColorOnly)));
-			}
+			--counterFlightsModel;			
 		});
 	}
 	return;
@@ -481,7 +461,7 @@ void MainWindow::on_mb_db_connection_triggered()
 	else
 	{
 		ui->mb_db_connection->setText("Отключиться от БД");
-		auto f = QtConcurrent::run([&]()
+		auto f = QtConcurrent::run(statisticWindow->getPool(), [&]()
 		{			
 			statisticWindow->acquireSemaphore(1);
 			initializeDB();			
