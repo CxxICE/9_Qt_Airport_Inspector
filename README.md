@@ -11,10 +11,7 @@
 
 ## Задание
 
-Разработать MVP-версию приложения «Инспектор аэропортов» в соответствии со [спецификацией требований к ПО][1].
-
-
-[1]: https://docs.google.com/document/d/1LsB_fs6rb4DmTMfGfDIwe5anEAI9VL9y089s_B8fJf0/edit?usp=sharing 
+Разработать MVP-версию приложения «Инспектор аэропортов» в соответствии со [спецификацией требований к ПО](https://github.com/CxxICE/9_Qt_Airport_Inspector/blob/main/%D0%98%D0%BD%D1%81%D0%BF%D0%B5%D0%BA%D1%82%D0%BE%D1%80%20%D0%B0%D1%8D%D1%80%D0%BE%D0%BF%D0%BE%D1%80%D1%82%D0%BE%D0%B2.%20%D0%A1%D0%BF%D0%B5%D1%86%D0%B8%D1%84%D0%B8%D0%BA%D0%B0%D1%86%D0%B8%D1%8F%20%D1%82%D1%80%D0%B5%D0%B1%D0%BE%D0%B2%D0%B0%D0%BD%D0%B8%D0%B9%20%D0%BA%20%D0%9F%D0%9E..pdf).
 
 Cсылка на используемую графику светофора:
 <a href="https://ru.freepik.com/free-vector/set-of-traffic-lights-isolated_10602714.htm#query=%D1%81%D0%B2%D0%B5%D1%82%D0%BE%D1%84%D0%BE%D1%80&position=2&from_view=keyword&track=sph">Изображение от macrovector</a> на Freepik
